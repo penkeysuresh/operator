@@ -695,6 +695,7 @@ func (c *managerComponent) securityContextConstraints() *ocsv1.SecurityContextCo
 	}
 }
 
+
 func (c *managerComponent) getTLSObjects() []runtime.Object {
 	objs := []runtime.Object{}
 	for _, s := range c.tlsSecrets {

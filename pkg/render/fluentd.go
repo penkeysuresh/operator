@@ -16,6 +16,7 @@ package render
 
 import (
 	"fmt"
+	ocsv1 "github.com/openshift/api/security/v1"
 	"strconv"
 
 	operatorv1 "github.com/tigera/operator/pkg/apis/operator/v1"
@@ -140,6 +141,8 @@ func (c *fluentdComponent) Objects() ([]runtime.Object, []runtime.Object) {
 			c.eksLogForwarderSecret(),
 			c.eksLogForwarderDeployment())
 	}
+
+	objs = append(objs, c.fluentSecurityContextConstraints())
 
 	objs = append(objs, secretsToRuntimeObjects(CopySecrets(LogCollectorNamespace, c.esSecrets...)...)...)
 	objs = append(objs, c.daemonset())
@@ -319,17 +322,52 @@ func (c *fluentdComponent) container() corev1.Container {
 			})
 	}
 
-	isPrivileged := true
-
 	return ElasticsearchContainerDecorateENVVars(corev1.Container{
 		Name:            "fluentd",
 		Image:           components.GetReference(components.ComponentFluentd, c.installation.Spec.Registry, c.installation.Spec.ImagePath),
 		Env:             envs,
-		SecurityContext: &corev1.SecurityContext{Privileged: &isPrivileged},
+		SecurityContext: fluentSecurityContext(),
 		VolumeMounts:    volumeMounts,
 		LivenessProbe:   c.liveness(),
 		ReadinessProbe:  c.readiness(),
+
 	}, c.esClusterConfig.ClusterName(), ElasticsearchLogCollectorUserSecret)
+}
+
+func fluentSecurityContext() *corev1.SecurityContext {
+	f := false
+	t := true
+	root := int64(0)
+	return &corev1.SecurityContext{
+		RunAsNonRoot:             &f,
+		RunAsUser: 				  &root,
+		AllowPrivilegeEscalation: &t,
+		Privileged				: &f,
+	}
+}
+
+func (c *fluentdComponent) fluentSecurityContextConstraints() *ocsv1.SecurityContextConstraints {
+	privilegeEscalation := true
+	root := int64(0)
+	return &ocsv1.SecurityContextConstraints{
+		TypeMeta:                 metav1.TypeMeta{Kind: "SecurityContextConstraints", APIVersion: "security.openshift.io/v1"},
+		ObjectMeta:               metav1.ObjectMeta{Name: LogCollectorNamespace},
+		AllowHostDirVolumePlugin: true,
+		AllowHostIPC:             false,
+		AllowHostNetwork:         false,
+		AllowHostPID:             false,
+		AllowHostPorts:           false,
+		AllowPrivilegeEscalation: &privilegeEscalation,
+		AllowPrivilegedContainer: false,
+		FSGroup:                  ocsv1.FSGroupStrategyOptions{Type: ocsv1.FSGroupStrategyRunAsAny},
+		RunAsUser:                ocsv1.RunAsUserStrategyOptions{Type: ocsv1.RunAsUserStrategyMustRunAs, UID: &root},
+		ReadOnlyRootFilesystem:   false,
+		SELinuxContext:           ocsv1.SELinuxContextStrategyOptions{Type: ocsv1.SELinuxStrategyMustRunAs},
+		SupplementalGroups:       ocsv1.SupplementalGroupsStrategyOptions{Type: ocsv1.SupplementalGroupsStrategyRunAsAny},
+		Users:                    []string{fmt.Sprintf("system:serviceaccount:%s", LogCollectorNamespace)},
+		Groups:                   []string{"system:authenticated"},
+		Volumes:                  []ocsv1.FSType{"*"},
+	}
 }
 
 func (c *fluentdComponent) envvars() []corev1.EnvVar {
