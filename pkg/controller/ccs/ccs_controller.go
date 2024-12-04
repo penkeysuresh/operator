@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	v3 "github.com/tigera/api/pkg/apis/projectcalico/v3"
+
 	operatorv1 "github.com/tigera/operator/api/v1"
 	"github.com/tigera/operator/pkg/common"
 	"github.com/tigera/operator/pkg/controller/certificatemanager"
@@ -40,7 +41,8 @@ import (
 	"github.com/tigera/operator/pkg/controller/utils/imageset"
 	"github.com/tigera/operator/pkg/ctrlruntime"
 	"github.com/tigera/operator/pkg/dns"
-	render "github.com/tigera/operator/pkg/render/ccs"
+	commonrender "github.com/tigera/operator/pkg/render"
+	ccsrender "github.com/tigera/operator/pkg/render/ccs"
 	rcertificatemanagement "github.com/tigera/operator/pkg/render/certificatemanagement"
 	"github.com/tigera/operator/pkg/render/common/networkpolicy"
 	"github.com/tigera/operator/pkg/tls/certificatemanagement"
@@ -85,14 +87,14 @@ func Add(mgr manager.Manager, opts options.AddOptions) error {
 		return err
 	}
 
-	installNS, _, watchNamespaces := tenancy.GetWatchNamespaces(opts.MultiTenant, render.PolicyRecommendationNamespace)
+	installNS, _, watchNamespaces := tenancy.GetWatchNamespaces(opts.MultiTenant, commonrender.PolicyRecommendationNamespace)
 
 	go utils.WaitToAddLicenseKeyWatch(ccsController, k8sClient, log, licenseAPIReady)
 
 	go utils.WaitToAddTierWatch(networkpolicy.TigeraComponentTierName, ccsController, k8sClient, log, tierWatchReady)
 	go utils.WaitToAddNetworkPolicyWatches(ccsController, k8sClient, log, []types.NamespacedName{
-		{Name: render.ComplianceAccessPolicyName, Namespace: installNS},
-		{Name: render.ComplianceServerPolicyName, Namespace: installNS},
+		{Name: ccsrender.ComplianceAccessPolicyName, Namespace: installNS},
+		{Name: ccsrender.ComplianceServerPolicyName, Namespace: installNS},
 		{Name: networkpolicy.TigeraComponentDefaultDenyPolicyName, Namespace: installNS},
 	})
 
@@ -202,7 +204,7 @@ func GetCCS(ctx context.Context, cli client.Client, mt bool, ns string) (*operat
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	helper := utils.NewNamespaceHelper(r.multiTenant, render.CcsNamespace, request.Namespace)
+	helper := utils.NewNamespaceHelper(r.multiTenant, ccsrender.CcsNamespace, request.Namespace)
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name, "installNS", helper.InstallNamespace(), "truthNS", helper.TruthNamespace())
 	reqLogger.Info("Reconciling Compliance")
 
@@ -339,24 +341,24 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 	}
 	var managerInternalTLSSecret certificatemanagement.CertificateInterface
 	if managementCluster != nil {
-		managerInternalTLSSecret, err = certificateManager.GetCertificate(r.client, render.ManagerInternalTLSSecretName, helper.TruthNamespace())
+		managerInternalTLSSecret, err = certificateManager.GetCertificate(r.client, commonrender.ManagerInternalTLSSecretName, helper.TruthNamespace())
 		if err != nil {
-			r.status.SetDegraded(operatorv1.ResourceValidationError, fmt.Sprintf("failed to retrieve / validate  %s", render.ManagerInternalTLSSecretName), err, reqLogger)
+			r.status.SetDegraded(operatorv1.ResourceValidationError, fmt.Sprintf("failed to retrieve / validate  %s", commonrender.ManagerInternalTLSSecretName), err, reqLogger)
 			return reconcile.Result{}, err
 		}
 	}
 
 	// The location of the Linseed certificate varies based on if this is a managed cluster or not.
 	// For standalone and management clusters, we just use Linseed's actual certificate.
-	linseedCertLocation := render.TigeraLinseedSecret
+	linseedCertLocation := commonrender.TigeraLinseedSecret
 	if managementClusterConnection != nil {
 		// For managed clusters, we need to add the certificate of the Voltron endpoint. This certificate is copied from the
 		// management cluster into the managed cluster by kube-controllers.
-		linseedCertLocation = render.VoltronLinseedPublicCert
+		linseedCertLocation = commonrender.VoltronLinseedPublicCert
 	}
 	linseedCertificate, err := certificateManager.GetCertificate(r.client, linseedCertLocation, helper.TruthNamespace())
 	if err != nil {
-		r.status.SetDegraded(operatorv1.ResourceValidationError, fmt.Sprintf("Failed to retrieve / validate  %s", render.TigeraLinseedSecret), err, reqLogger)
+		r.status.SetDegraded(operatorv1.ResourceValidationError, fmt.Sprintf("Failed to retrieve / validate  %s", commonrender.TigeraLinseedSecret), err, reqLogger)
 		return reconcile.Result{}, err
 	} else if linseedCertificate == nil {
 		log.Info("Linseed certificate is not available yet, waiting until it becomes available")
@@ -381,10 +383,10 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 		SecretName string
 		Interface  certificatemanagement.KeyPairInterface
 	}
-	snapshotterKeyPair := complianceKeyPair{SecretName: render.ComplianceSnapshotterSecret}
-	benchmarkerKeyPair := complianceKeyPair{SecretName: render.ComplianceBenchmarkerSecret}
-	reporterKeyPair := complianceKeyPair{SecretName: render.ComplianceReporterSecret}
-	controllerKeyPair := complianceKeyPair{SecretName: render.ComplianceControllerSecret}
+	snapshotterKeyPair := complianceKeyPair{SecretName: ccsrender.ComplianceSnapshotterSecret}
+	benchmarkerKeyPair := complianceKeyPair{SecretName: ccsrender.ComplianceBenchmarkerSecret}
+	reporterKeyPair := complianceKeyPair{SecretName: ccsrender.ComplianceReporterSecret}
+	controllerKeyPair := complianceKeyPair{SecretName: ccsrender.ComplianceControllerSecret}
 	for _, kp := range []*complianceKeyPair{&snapshotterKeyPair, &benchmarkerKeyPair, &reporterKeyPair, &controllerKeyPair} {
 		// These key pairs are only used as client credentials for mTLS with Linseed, and so do not need DNS names listed
 		// as they do not act as server certs.
@@ -400,11 +402,11 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 	if managementClusterConnection == nil {
 		complianceServerKeyPair, err = certificateManager.GetOrCreateKeyPair(
 			r.client,
-			render.ComplianceServerCertSecret,
+			ccsrender.ComplianceServerCertSecret,
 			helper.TruthNamespace(),
-			dns.GetServiceDNSNames(render.ComplianceServiceName, helper.InstallNamespace(), r.clusterDomain))
+			dns.GetServiceDNSNames(commonrender.ComplianceServiceName, helper.InstallNamespace(), r.clusterDomain))
 		if err != nil {
-			r.status.SetDegraded(operatorv1.ResourceValidationError, fmt.Sprintf("failed to retrieve / validate  %s", render.ComplianceServerCertSecret), err, reqLogger)
+			r.status.SetDegraded(operatorv1.ResourceValidationError, fmt.Sprintf("failed to retrieve / validate  %s", ccsrender.ComplianceServerCertSecret), err, reqLogger)
 			return reconcile.Result{}, err
 		}
 	}
@@ -441,34 +443,34 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 
 	reqLogger.V(3).Info("rendering components")
 
-	namespaceComp := render.NewPassthrough(render.CreateNamespace(helper.InstallNamespace(), network.KubernetesProvider, render.PSSPrivileged, network.Azure))
+	namespaceComp := commonrender.NewPassthrough(commonrender.CreateNamespace(helper.InstallNamespace(), network.KubernetesProvider, commonrender.PSSPrivileged, network.Azure))
 
 	hasNoLicense := !utils.IsFeatureActive(license, common.ComplianceFeature)
 	openshift := r.provider.IsOpenShift()
-	complianceCfg := &render.Configuration{
-		TrustedBundle:               trustedBundle,
-		Installation:                network,
-		ServerKeyPair:               complianceServerKeyPair,
-		ControllerKeyPair:           controllerKeyPair.Interface,
-		BenchmarkerKeyPair:          benchmarkerKeyPair.Interface,
-		SnapshotterKeyPair:          snapshotterKeyPair.Interface,
-		ReporterKeyPair:             reporterKeyPair.Interface,
-		PullSecrets:                 pullSecrets,
-		OpenShift:                   openshift,
-		ManagementCluster:           managementCluster,
-		ManagementClusterConnection: managementClusterConnection,
-		KeyValidatorConfig:          keyValidatorConfig,
-		ClusterDomain:               r.clusterDomain,
-		HasNoLicense:                hasNoLicense,
-		Namespace:                   helper.InstallNamespace(),
-		BindingNamespaces:           bindNamespaces,
-		Tenant:                      tenant,
-		Compliance:                  instance,
-		ExternalElastic:             r.externalElastic,
+	complianceCfg := &ccsrender.Configuration{
+		TrustedBundle:                   trustedBundle,
+		Installation:                    network,
+		ServerKeyPair:                   complianceServerKeyPair,
+		ControllerKeyPair:               controllerKeyPair.Interface,
+		BenchmarkerKeyPair:              benchmarkerKeyPair.Interface,
+		SnapshotterKeyPair:              snapshotterKeyPair.Interface,
+		ReporterKeyPair:                 reporterKeyPair.Interface,
+		PullSecrets:                     pullSecrets,
+		OpenShift:                       openshift,
+		ManagementCluster:               managementCluster,
+		ManagementClusterConnection:     managementClusterConnection,
+		KeyValidatorConfig:              keyValidatorConfig,
+		ClusterDomain:                   r.clusterDomain,
+		HasNoLicense:                    hasNoLicense,
+		Namespace:                       helper.InstallNamespace(),
+		BindingNamespaces:               bindNamespaces,
+		Tenant:                          tenant,
+		ComplianceConfigurationSecurity: instance,
+		ExternalElastic:                 r.externalElastic,
 	}
 
 	// Render the desired objects from the CRD and create or update them.
-	comp, err := render.CCS(complianceCfg)
+	comp, err := ccsrender.CCS(complianceCfg)
 	if err != nil {
 		r.status.SetDegraded(operatorv1.ResourceRenderingError, "Error rendering Compliance", err, reqLogger)
 		return reconcile.Result{}, err
@@ -481,7 +483,7 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 	certificateComponent := rcertificatemanagement.CertificateManagement(&rcertificatemanagement.Config{
 		Namespace:       helper.InstallNamespace(),
 		TruthNamespace:  helper.TruthNamespace(),
-		ServiceAccounts: []string{render.ComplianceServerServiceAccount, render.ComplianceBenchmarkerServiceAccount, render.ComplianceSnapshotterServiceAccount, render.ComplianceControllerServiceAccount, render.ComplianceReporterServiceAccount},
+		ServiceAccounts: []string{ccsrender.ComplianceServerServiceAccount, ccsrender.ComplianceBenchmarkerServiceAccount, ccsrender.ComplianceSnapshotterServiceAccount, ccsrender.ComplianceControllerServiceAccount, ccsrender.ComplianceReporterServiceAccount},
 		KeyPairOptions: []rcertificatemanagement.KeyPairOption{
 			rcertificatemanagement.NewKeyPairOption(complianceServerKeyPair, true, true),
 			rcertificatemanagement.NewKeyPairOption(controllerKeyPair.Interface, true, true),
@@ -492,7 +494,7 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 		TrustedBundle: bundleMaker,
 	})
 
-	for _, comp := range []render.Component{namespaceComp, certificateComponent, comp} {
+	for _, comp := range []commonrender.Component{namespaceComp, certificateComponent, comp} {
 		if err := handler.CreateOrUpdateOrDelete(ctx, comp, r.status); err != nil {
 			r.status.SetDegraded(operatorv1.ResourceUpdateError, "Error creating / updating / deleting resource", err, reqLogger)
 			return reconcile.Result{}, err
