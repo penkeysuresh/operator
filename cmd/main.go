@@ -271,6 +271,8 @@ If a value other than 'all' is specified, the first CRD with a prefix of the spe
 		// not being this mapper (which has since been rectified). It was a tough issue to figure out when the default
 		// had changed out from under us, so better to continue to explicitly set it as we know this is the mapper we want.
 		MapperProvider: apiutil.NewDynamicRESTMapper,
+
+		LeaderElectionNamespace: "tigera-operator",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

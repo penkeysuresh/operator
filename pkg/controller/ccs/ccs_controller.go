@@ -1,10 +1,10 @@
-// Copyright (c) 2020-2024 Tigera, Inc. All rights reserved.
+// Copyright (c) 2019-2024 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in CCSwith the License.
+// you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -48,7 +48,7 @@ import (
 	"github.com/tigera/operator/pkg/tls/certificatemanagement"
 )
 
-const ResourceName = "ccs"
+const ResourceName = "complianceconfigurationsecurity"
 
 var log = logf.Log.WithName("controller_ccs")
 
@@ -93,12 +93,12 @@ func Add(mgr manager.Manager, opts options.AddOptions) error {
 
 	go utils.WaitToAddTierWatch(networkpolicy.TigeraComponentTierName, ccsController, k8sClient, log, tierWatchReady)
 	go utils.WaitToAddNetworkPolicyWatches(ccsController, k8sClient, log, []types.NamespacedName{
-		{Name: ccsrender.ComplianceAccessPolicyName, Namespace: installNS},
-		{Name: ccsrender.ComplianceServerPolicyName, Namespace: installNS},
+		//{Name: ccsrender.CCSAPIPolicyName, Namespace: installNS},
+		//{Name: ccsrender.CCSControllerPolicyName, Namespace: installNS},
 		{Name: networkpolicy.TigeraComponentDefaultDenyPolicyName, Namespace: installNS},
 	})
 
-	// Watch for changes to primary resource Compliance
+	// Watch for changes to primary resource CCS
 	err = ccsController.WatchObject(&operatorv1.ComplianceConfigurationSecurity{}, &handler.EnqueueRequestForObject{})
 	if err != nil {
 		return err
@@ -119,33 +119,32 @@ func Add(mgr manager.Manager, opts options.AddOptions) error {
 	// Watch the given secrets in each both the CCSand operator namespaces
 	for _, namespace := range watchNamespaces {
 		for _, secretName := range []string{
-			//render.ComplianceServerCertSecret, render.ManagerInternalTLSSecretName, certificatemanagement.CASecretName,
-			//render.TigeraLinseedSecret, render.VoltronLinseedTLS,
-			//render.VoltronLinseedPublicCert,
+			ccsrender.APICertSecretName, certificatemanagement.CASecretName, commonrender.ManagerInternalTLSSecretName,
+			commonrender.VoltronLinseedTLS, commonrender.VoltronLinseedPublicCert,
 		} {
 			if err = utils.AddSecretsWatch(ccsController, secretName, namespace); err != nil {
-				return fmt.Errorf("compliance-controller failed to watch the secret '%s' in '%s' namespace: %w", secretName, namespace, err)
+				return fmt.Errorf("ccs-controller failed to watch the secret '%s' in '%s' namespace: %w", secretName, namespace, err)
 			}
 		}
 	}
 
 	// Watch for changes to primary resource ManagementCluster
 	if err = ccsController.WatchObject(&operatorv1.ManagementCluster{}, eventHandler); err != nil {
-		return fmt.Errorf("compliance-controller failed to watch primary resource: %w", err)
+		return fmt.Errorf("ccs-controller failed to watch primary resource: %w", err)
 	}
 
 	// Watch for changes to primary resource ManagementClusterConnection
 	if err = ccsController.WatchObject(&operatorv1.ManagementClusterConnection{}, eventHandler); err != nil {
-		return fmt.Errorf("compliance-controller failed to watch primary resource: %w", err)
+		return fmt.Errorf("ccs-controller failed to watch primary resource: %w", err)
 	}
 
 	if err = ccsController.WatchObject(&operatorv1.Authentication{}, eventHandler); err != nil {
-		return fmt.Errorf("compliance-controller failed to watch resource: %w", err)
+		return fmt.Errorf("ccs-controller failed to watch resource: %w", err)
 	}
 
 	// Watch for changes to TigeraStatus.
 	if err = utils.AddTigeraStatusWatch(ccsController, ResourceName); err != nil {
-		return fmt.Errorf("compliance-controller failed to watch CCSTigerastatus: %w", err)
+		return fmt.Errorf("ccs-controller failed to watch CCS Tigerastatus: %w", err)
 	}
 
 	return nil
@@ -157,7 +156,7 @@ func newReconciler(mgr manager.Manager, opts options.AddOptions, licenseAPIReady
 		client:          mgr.GetClient(),
 		scheme:          mgr.GetScheme(),
 		provider:        opts.DetectedProvider,
-		status:          status.New(mgr.GetClient(), "compliance", opts.KubernetesVersion),
+		status:          status.New(mgr.GetClient(), "ccs", opts.KubernetesVersion),
 		clusterDomain:   opts.ClusterDomain,
 		licenseAPIReady: licenseAPIReady,
 		tierWatchReady:  tierWatchReady,
@@ -198,15 +197,15 @@ func GetCCS(ctx context.Context, cli client.Client, mt bool, ns string) (*operat
 	return instance, nil
 }
 
-// Reconcile reads that state of the cluster for a CCSobject and makes changes based on the state read
-// and what is in the Compliance.Spec
+// Reconcile reads that state of the cluster for a CCS object and makes changes based on the state read
+// and what is in the CCS.Spec
 // Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	helper := utils.NewNamespaceHelper(r.multiTenant, ccsrender.CcsNamespace, request.Namespace)
+	helper := utils.NewNamespaceHelper(r.multiTenant, ccsrender.Namespace, request.Namespace)
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name, "installNS", helper.InstallNamespace(), "truthNS", helper.TruthNamespace())
-	reqLogger.Info("Reconciling Compliance")
+	reqLogger.Info("Reconciling CCS")
 
 	// We skip requests without a namespace specified in multi-tenant setups.
 	if r.multiTenant && request.Namespace == "" {
@@ -223,18 +222,18 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 		return reconcile.Result{}, err
 	}
 
-	// Fetch the CCSinstance
+	// Fetch the CCS instance
 	instance, err := GetCCS(ctx, r.client, r.multiTenant, request.Namespace)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			reqLogger.Info("CCSconfig not found")
+			reqLogger.Info("ComplianceConfigurationSecurity not found")
 			r.status.OnCRNotFound()
 			return reconcile.Result{}, nil
 		}
-		r.status.SetDegraded(operatorv1.ResourceReadError, "Error querying compliance", err, reqLogger)
+		r.status.SetDegraded(operatorv1.ResourceReadError, "Error querying ccs", err, reqLogger)
 		return reconcile.Result{}, err
 	}
 	r.status.OnCRFound()
@@ -331,9 +330,7 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 	}
 
 	var opts []certificatemanager.Option
-
 	opts = append(opts, certificatemanager.WithTenant(tenant), certificatemanager.WithLogger(reqLogger))
-
 	certificateManager, err := certificatemanager.Create(r.client, network, r.clusterDomain, helper.TruthNamespace(), opts...)
 	if err != nil {
 		r.status.SetDegraded(operatorv1.ResourceCreateError, "Unable to create the Tigera CA", err, reqLogger)
@@ -367,9 +364,9 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 	}
 	bundleMaker := certificateManager.CreateTrustedBundle(managerInternalTLSSecret, linseedCertificate)
 	trustedBundle := bundleMaker.(certificatemanagement.TrustedBundleRO)
+	// TODO - Copied from compliance, verify if this is the case for CCS as well.
 	if r.multiTenant {
 		// For multi-tenant systems, we load the pre-created bundle for this tenant instead of using the one we built here.
-		// Multi-tenant CCSneed the bundle variant that includes system root certificates, in order to verify external auth providers.
 		trustedBundle, err = certificateManager.LoadMultiTenantTrustedBundleWithRootCertificates(ctx, r.client, helper.InstallNamespace())
 		if err != nil {
 			r.status.SetDegraded(operatorv1.ResourceReadError, "Error getting trusted bundle", err, reqLogger)
@@ -378,37 +375,16 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 		bundleMaker = nil
 	}
 
-	// Get the key pairs for each component, generating them as needed.
-	type complianceKeyPair struct {
-		SecretName string
-		Interface  certificatemanagement.KeyPairInterface
-	}
-	snapshotterKeyPair := complianceKeyPair{SecretName: ccsrender.ComplianceSnapshotterSecret}
-	benchmarkerKeyPair := complianceKeyPair{SecretName: ccsrender.ComplianceBenchmarkerSecret}
-	reporterKeyPair := complianceKeyPair{SecretName: ccsrender.ComplianceReporterSecret}
-	controllerKeyPair := complianceKeyPair{SecretName: ccsrender.ComplianceControllerSecret}
-	for _, kp := range []*complianceKeyPair{&snapshotterKeyPair, &benchmarkerKeyPair, &reporterKeyPair, &controllerKeyPair} {
-		// These key pairs are only used as client credentials for mTLS with Linseed, and so do not need DNS names listed
-		// as they do not act as server certs.
-		dnsNames := []string{"localhost"}
-		kp.Interface, err = certificateManager.GetOrCreateKeyPair(r.client, kp.SecretName, helper.TruthNamespace(), dnsNames)
-		if err != nil {
-			r.status.SetDegraded(operatorv1.ResourceValidationError, fmt.Sprintf("failed to retrieve / validate  %s", kp.SecretName), err, reqLogger)
-			return reconcile.Result{}, err
-		}
-	}
-
-	var complianceServerKeyPair certificatemanagement.KeyPairInterface
-	if managementClusterConnection == nil {
-		complianceServerKeyPair, err = certificateManager.GetOrCreateKeyPair(
-			r.client,
-			ccsrender.ComplianceServerCertSecret,
-			helper.TruthNamespace(),
-			dns.GetServiceDNSNames(commonrender.ComplianceServiceName, helper.InstallNamespace(), r.clusterDomain))
-		if err != nil {
-			r.status.SetDegraded(operatorv1.ResourceValidationError, fmt.Sprintf("failed to retrieve / validate  %s", ccsrender.ComplianceServerCertSecret), err, reqLogger)
-			return reconcile.Result{}, err
-		}
+	var apiKeyPair certificatemanagement.KeyPairInterface
+	// create tls key pair for ccs api.
+	apiKeyPair, err = certificateManager.GetOrCreateKeyPair(
+		r.client,
+		ccsrender.APICertSecretName,
+		helper.TruthNamespace(),
+		dns.GetServiceDNSNames(ccsrender.APIResourceName, helper.InstallNamespace(), r.clusterDomain))
+	if err != nil {
+		r.status.SetDegraded(operatorv1.ResourceValidationError, fmt.Sprintf("failed to retrieve / validate  %s", ccsrender.APICertSecretName), err, reqLogger)
+		return reconcile.Result{}, err
 	}
 	certificateManager.AddToStatusManager(r.status, helper.InstallNamespace())
 
@@ -432,9 +408,6 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 		return reconcile.Result{}, err
 	}
 
-	// Create a component handler to manage the rendered component.
-	handler := utils.NewComponentHandler(log, r.client, r.scheme, instance)
-
 	keyValidatorConfig, err := utils.GetKeyValidatorConfig(ctx, r.client, authenticationCR, r.clusterDomain)
 	if err != nil {
 		r.status.SetDegraded(operatorv1.ResourceValidationError, "Failed to process the authentication CR.", err, reqLogger)
@@ -443,18 +416,14 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 
 	reqLogger.V(3).Info("rendering components")
 
-	namespaceComp := commonrender.NewPassthrough(commonrender.CreateNamespace(helper.InstallNamespace(), network.KubernetesProvider, commonrender.PSSPrivileged, network.Azure))
+	namespaceComp := commonrender.NewPassthrough(commonrender.CreateNamespace(helper.InstallNamespace(), network.KubernetesProvider, commonrender.PSSBaseline, network.Azure))
 
 	hasNoLicense := !utils.IsFeatureActive(license, common.ComplianceFeature)
 	openshift := r.provider.IsOpenShift()
-	complianceCfg := &ccsrender.Configuration{
+	cfg := &ccsrender.Configuration{
 		TrustedBundle:                   trustedBundle,
 		Installation:                    network,
-		ServerKeyPair:                   complianceServerKeyPair,
-		ControllerKeyPair:               controllerKeyPair.Interface,
-		BenchmarkerKeyPair:              benchmarkerKeyPair.Interface,
-		SnapshotterKeyPair:              snapshotterKeyPair.Interface,
-		ReporterKeyPair:                 reporterKeyPair.Interface,
+		APIKeyPair:                      apiKeyPair,
 		PullSecrets:                     pullSecrets,
 		OpenShift:                       openshift,
 		ManagementCluster:               managementCluster,
@@ -470,39 +439,37 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 	}
 
 	// Render the desired objects from the CRD and create or update them.
-	comp, err := ccsrender.CCS(complianceCfg)
+	ccsComponent, err := ccsrender.CCS(cfg)
 	if err != nil {
-		r.status.SetDegraded(operatorv1.ResourceRenderingError, "Error rendering Compliance", err, reqLogger)
+		r.status.SetDegraded(operatorv1.ResourceRenderingError, "Error rendering CCS", err, reqLogger)
 		return reconcile.Result{}, err
 	}
 
-	if err = imageset.ApplyImageSet(ctx, r.client, variant, comp); err != nil {
+	if err = imageset.ApplyImageSet(ctx, r.client, variant, ccsComponent); err != nil {
 		r.status.SetDegraded(operatorv1.ResourceUpdateError, "Error with images from ImageSet", err, reqLogger)
 		return reconcile.Result{}, err
 	}
 	certificateComponent := rcertificatemanagement.CertificateManagement(&rcertificatemanagement.Config{
 		Namespace:       helper.InstallNamespace(),
 		TruthNamespace:  helper.TruthNamespace(),
-		ServiceAccounts: []string{ccsrender.ComplianceServerServiceAccount, ccsrender.ComplianceBenchmarkerServiceAccount, ccsrender.ComplianceSnapshotterServiceAccount, ccsrender.ComplianceControllerServiceAccount, ccsrender.ComplianceReporterServiceAccount},
+		ServiceAccounts: []string{ccsrender.APIResourceName},
 		KeyPairOptions: []rcertificatemanagement.KeyPairOption{
-			rcertificatemanagement.NewKeyPairOption(complianceServerKeyPair, true, true),
-			rcertificatemanagement.NewKeyPairOption(controllerKeyPair.Interface, true, true),
-			rcertificatemanagement.NewKeyPairOption(benchmarkerKeyPair.Interface, true, true),
-			rcertificatemanagement.NewKeyPairOption(snapshotterKeyPair.Interface, true, true),
-			rcertificatemanagement.NewKeyPairOption(reporterKeyPair.Interface, true, true),
+			rcertificatemanagement.NewKeyPairOption(apiKeyPair, true, true),
 		},
 		TrustedBundle: bundleMaker,
 	})
 
-	for _, comp := range []commonrender.Component{namespaceComp, certificateComponent, comp} {
-		if err := handler.CreateOrUpdateOrDelete(ctx, comp, r.status); err != nil {
+	hdlr := utils.NewComponentHandler(log, r.client, r.scheme, instance)
+
+	for _, c := range []commonrender.Component{namespaceComp, certificateComponent, ccsComponent} {
+		if err := hdlr.CreateOrUpdateOrDelete(ctx, c, r.status); err != nil {
 			r.status.SetDegraded(operatorv1.ResourceUpdateError, "Error creating / updating / deleting resource", err, reqLogger)
 			return reconcile.Result{}, err
 		}
 	}
 
 	if hasNoLicense {
-		log.V(4).Info("CCSis not activated as part of this license")
+		log.V(4).Info("CCS is not activated as part of this license")
 		r.status.SetDegraded(operatorv1.ResourceValidationError, "Feature is not active - License does not support this feature", nil, reqLogger)
 		return reconcile.Result{}, nil
 	}
@@ -517,8 +484,7 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 	}
 
 	// Everything is available - update the CRD status.
-	// TODO - update the status to ready.
-	//instance.Status.State = operatorv1.TigeraStatusReady
+	instance.Status.State = operatorv1.TigeraStatusReady
 	if err = r.client.Status().Update(ctx, instance); err != nil {
 		return reconcile.Result{}, err
 	}

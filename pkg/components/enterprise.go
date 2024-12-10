@@ -197,6 +197,18 @@ var (
 		Registry: "",
 	}
 
+	ComponentCCSController = Component{
+		Version:  "master",
+		Image:    "tigera/ccs-controller",
+		Registry: "",
+	}
+
+	ComponentCCSAPI = Component{
+		Version:  "master",
+		Image:    "tigera/ccs-api",
+		Registry: "",
+	}
+
 	ComponentEnvoyProxy = Component{
 		Version:  "master",
 		Image:    "tigera/envoy",
@@ -355,5 +367,7 @@ var (
 		ComponentTigeraFlexVolume,
 		ComponentTigeraCSI,
 		ComponentTigeraCSINodeDriverRegistrar,
+		ComponentCCSAPI,
+		ComponentCCSController,
 	}
 )

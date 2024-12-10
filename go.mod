@@ -41,6 +41,8 @@ require (
 	sigs.k8s.io/yaml v1.4.0
 )
 
+require k8s.io/utils v0.0.0-20240502163921-fe8a2dddb1d0 // indirect
+
 require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/alessio/shellescape v1.4.2 // indirect
@@ -114,7 +116,6 @@ require (
 	howett.net/plist v1.0.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240430033511-f0e62f92d13f // indirect
-	k8s.io/utils v0.0.0-20240502163921-fe8a2dddb1d0 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
