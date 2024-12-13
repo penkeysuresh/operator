@@ -26,6 +26,7 @@ import (
 	calicov3 "github.com/tigera/api/pkg/apis/projectcalico/v3"
 	"github.com/tigera/operator/pkg/render"
 	rcomponents "github.com/tigera/operator/pkg/render/common/components"
+	"github.com/tigera/operator/pkg/render/common/networkpolicy"
 	"github.com/tigera/operator/pkg/render/common/secret"
 	"github.com/tigera/operator/pkg/render/common/securitycontext"
 	"github.com/tigera/operator/pkg/tls/certificatemanagement"
@@ -34,6 +35,9 @@ import (
 const (
 	APIResourceName   = "tigera-ccs-api"
 	APICertSecretName = "tigera-ccs-api-tls"
+
+	APIAccessPolicyName        = networkpolicy.TigeraComponentPolicyPrefix + "ccs-api-access"
+	ControllerAccessPolicyName = networkpolicy.TigeraComponentPolicyPrefix + "ccs-controller-access"
 )
 
 func (c *ccsComponent) apiServiceAccount() *corev1.ServiceAccount {
@@ -70,6 +74,39 @@ func (c *ccsComponent) apiRoleBinding() *rbacv1.RoleBinding {
 	}
 }
 
+func (c *ccsComponent) apiClusterRole() *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		TypeMeta:   metav1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
+		ObjectMeta: metav1.ObjectMeta{Name: APIResourceName, Namespace: c.cfg.Namespace},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{"linseed.tigera.io"},
+				Resources: []string{"ccsresults", "ccsruns"},
+				Verbs:     []string{"get", "create"},
+			},
+		},
+	}
+}
+
+func (c *ccsComponent) apiClusterRoleBinding() *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta:   metav1.TypeMeta{Kind: "ClusterRoleBinding", APIVersion: "rbac.authorization.k8s.io/v1"},
+		ObjectMeta: metav1.ObjectMeta{Name: APIResourceName, Namespace: c.cfg.Namespace},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     APIResourceName,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      APIResourceName,
+				Namespace: c.cfg.Namespace,
+			},
+		},
+	}
+}
+
 func (c *ccsComponent) apiDeployment() *appsv1.Deployment {
 	var keyPath, certPath string
 	if c.cfg.APIKeyPair != nil {
@@ -77,7 +114,7 @@ func (c *ccsComponent) apiDeployment() *appsv1.Deployment {
 	}
 
 	envVars := []corev1.EnvVar{
-		{Name: "LOG_LEVEL", Value: "info"},
+		{Name: "LOG_LEVEL", Value: "debug"},
 		{Name: "HTTPS_ENABLED", Value: "true"},
 		{Name: "HTTPS_CERT", Value: certPath},
 		{Name: "HTTPS_KEY", Value: keyPath},
@@ -121,7 +158,7 @@ func (c *ccsComponent) apiDeployment() *appsv1.Deployment {
 			Containers: []corev1.Container{
 				{
 					Name:            APIResourceName,
-					Image:           "gcr.io/unique-caldron-775/suresh/ccs-api:demo-v1.1", // TODO c.apiImage,
+					Image:           "gcr.io/unique-caldron-775/suresh/ccs-api:operator-v1", // TODO c.apiImage,
 					ImagePullPolicy: render.ImagePullPolicy(),
 					Env:             envVars,
 					Ports:           []corev1.ContainerPort{{ContainerPort: 5557}},
@@ -177,7 +214,7 @@ func (c *ccsComponent) apiService() *corev1.Service {
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
-					Port:       80,
+					Port:       443,
 					TargetPort: intstr.FromInt32(5557),
 				},
 			},
@@ -187,5 +224,28 @@ func (c *ccsComponent) apiService() *corev1.Service {
 }
 
 func (c *ccsComponent) apiAllowTigeraNetworkPolicy() *calicov3.NetworkPolicy {
-	return nil
+	_ = networkpolicy.Helper(c.cfg.Tenant.MultiTenant(), c.cfg.Namespace)
+	return &calicov3.NetworkPolicy{
+		TypeMeta: metav1.TypeMeta{Kind: "NetworkPolicy", APIVersion: "projectcalico.org/v3"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      APIAccessPolicyName,
+			Namespace: c.cfg.Namespace,
+		},
+		Spec: calicov3.NetworkPolicySpec{
+			Order:    &networkpolicy.HighPrecedenceOrder,
+			Tier:     networkpolicy.TigeraComponentTierName,
+			Selector: networkpolicy.KubernetesAppSelector(APIResourceName),
+			Types:    []calicov3.PolicyType{calicov3.PolicyTypeIngress, calicov3.PolicyTypeEgress},
+			Ingress: []calicov3.Rule{
+				{
+					Action: calicov3.Allow,
+				},
+			},
+			Egress: []calicov3.Rule{
+				{
+					Action: calicov3.Allow,
+				},
+			},
+		},
+	}
 }

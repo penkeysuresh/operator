@@ -166,6 +166,13 @@ func AddToManager(mgr ctrl.Manager, options options.AddOptions) error {
 			return fmt.Errorf("failed to create controller %s: %v", "PacketCapture", err)
 		}
 	*/
+	if err := (&LogStorageReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("LogStorage"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr, options); err != nil {
+		return fmt.Errorf("failed to create controller %s: %v", "LogStorage", err)
+	}
 	if err := (&CCSReconciler{
 		Client: mgr.GetClient(),
 		Log:    ctrl.Log.WithName("controllers").WithName("CCS"),

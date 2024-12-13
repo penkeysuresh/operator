@@ -438,7 +438,7 @@ func (l *linseed) linseedDeployment() *appsv1.Deployment {
 			Containers: []corev1.Container{
 				{
 					Name:            DeploymentName,
-					Image:           l.linseedImage,
+					Image:           "gcr.io/unique-caldron-775/suresh/linseed:operator-v2", //l.linseedImage,
 					ImagePullPolicy: render.ImagePullPolicy(),
 					Env:             envVars,
 					VolumeMounts:    volumeMounts,
@@ -618,6 +618,12 @@ func (l *linseed) linseedAllowTigeraPolicy() *v3.NetworkPolicy {
 			Action:      v3.Allow,
 			Protocol:    &networkpolicy.TCPProtocol,
 			Source:      networkpolicyHelper.ComplianceReporterSourceEntityRule(),
+			Destination: linseedIngressDestinationEntityRule,
+		},
+		{
+			Action:      v3.Allow,
+			Protocol:    &networkpolicy.TCPProtocol,
+			Source:      networkpolicyHelper.CCSAPISourceEntityRule(),
 			Destination: linseedIngressDestinationEntityRule,
 		},
 		{

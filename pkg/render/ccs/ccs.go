@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	Namespace = "tigera-ccs"
+	Namespace = "tigera-compliance"
 )
 
 func CCS(cfg *Configuration) (render.Component, error) {
@@ -108,15 +108,21 @@ func (c *ccsComponent) Objects() ([]client.Object, []client.Object) {
 		c.apiRoleBinding(),
 		c.apiDeployment(),
 		c.apiService(),
-		//c.apiAllowTigeraNetworkPolicy(),
+		c.apiClusterRole(),
+		c.apiClusterRoleBinding(),
+		// TODO: the policy is broad but works.
+		c.apiAllowTigeraNetworkPolicy(),
 	)
 
 	objs = append(objs,
 		c.controllerServiceAccount(),
+		c.controllerClusterRole(),
+		c.controllerClusterRoleBinding(),
 		c.controllerRole(),
 		c.controllerRoleBinding(),
 		c.controllerDeployment(),
-		//c.controllerAllowTigeraNetworkPolicy(),
+		// TODO: the policy is broad but works.
+		c.controllerAllowTigeraNetworkPolicy(),
 	)
 
 	return objs, nil

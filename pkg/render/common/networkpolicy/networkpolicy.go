@@ -305,6 +305,10 @@ func (h *NetworkPolicyHelper) ComplianceControllerSourceEntityRule() v3.EntityRu
 	return CreateSourceEntityRule(h.namespace("tigera-compliance"), "compliance-controller")
 }
 
+func (h *NetworkPolicyHelper) CCSAPISourceEntityRule() v3.EntityRule {
+	return CreateSourceEntityRule(h.namespace("tigera-compliance"), "tigera-ccs-api")
+}
+
 func (h *NetworkPolicyHelper) ComplianceSnapshotterSourceEntityRule() v3.EntityRule {
 	return CreateSourceEntityRule(h.namespace("tigera-compliance"), "compliance-snapshotter")
 }

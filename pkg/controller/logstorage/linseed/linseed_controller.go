@@ -237,10 +237,10 @@ func (r *LinseedSubController) Reconcile(ctx context.Context, request reconcile.
 	r.status.OnCRFound()
 
 	// Wait for the initializing controller to indicate that the LogStorage object is actionable.
-	if logStorage.Status.State != operatorv1.TigeraStatusReady {
-		r.status.SetDegraded(operatorv1.ResourceNotReady, "Waiting for LogStorage defaulting to occur", nil, reqLogger)
-		return reconcile.Result{RequeueAfter: utils.StandardRetry}, nil
-	}
+	//if logStorage.Status.State != operatorv1.TigeraStatusReady {
+	//	r.status.SetDegraded(operatorv1.ResourceNotReady, "Waiting for LogStorage defaulting to occur", nil, reqLogger)
+	//	return reconcile.Result{RequeueAfter: utils.StandardRetry}, nil
+	//}
 
 	// Get Installation resource.
 	variant, install, err := utils.GetInstallation(context.Background(), r.client)

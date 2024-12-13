@@ -26,6 +26,7 @@ import (
 
 	"github.com/tigera/operator/pkg/render"
 	rcomponents "github.com/tigera/operator/pkg/render/common/components"
+	"github.com/tigera/operator/pkg/render/common/networkpolicy"
 	"github.com/tigera/operator/pkg/render/common/secret"
 	"github.com/tigera/operator/pkg/render/common/securitycontext"
 )
@@ -66,8 +67,142 @@ func (c *ccsComponent) controllerRoleBinding() *rbacv1.RoleBinding {
 	}
 }
 
-func ccsControllerDP() *appsv1.Deployment {
-	return nil
+func (c *ccsComponent) controllerClusterRole() *rbacv1.ClusterRole {
+	// Set of permissions for kubescape host sensor.
+	rules := []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{""},
+			Resources: []string{
+				"pods", "pods/proxy", "namespaces", "secrets", "nodes", "configmaps",
+				"services", "serviceaccounts", "endpoints", "persistentvolumes",
+				"persistentvolumeclaims", "limitranges", "replicationcontrollers",
+				"podtemplates", "resourcequotas", "events",
+			},
+			Verbs: []string{"get", "watch", "list"},
+		},
+		// TODO : namespace can be removed once we update the yaml
+		{
+			APIGroups: []string{""},
+			Resources: []string{"namespaces"},
+			Verbs:     []string{"update", "create", "delete"},
+		},
+		{
+			APIGroups: []string{"admissionregistration.k8s.io"},
+			Resources: []string{"mutatingwebhookconfigurations", "validatingwebhookconfigurations"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"apiregistration.k8s.io"},
+			Resources: []string{"apiservices"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		// TODO : create may be removed have to check
+		{
+			APIGroups: []string{"apps"},
+			Resources: []string{"deployments", "statefulsets", "daemonsets", "replicasets", "controllerrevisions"},
+			Verbs:     []string{"get", "watch", "list", "create", "update", "delete"},
+		},
+		{
+			APIGroups: []string{"autoscaling"},
+			Resources: []string{"horizontalpodautoscalers"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"batch"},
+			Resources: []string{"jobs", "cronjobs"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"coordination.k8s.io"},
+			Resources: []string{"leases"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"discovery.k8s.io"},
+			Resources: []string{"endpointslices"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"events.k8s.io"},
+			Resources: []string{"events"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"hostdata.kubescape.cloud"},
+			Resources: []string{"APIServerInfo", "ControlPlaneInfo"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"networking.k8s.io"},
+			Resources: []string{"networkpolicies", "ingresses"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"policy"},
+			Resources: []string{"poddisruptionbudgets", "podsecuritypolicies", "PodSecurityPolicy"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"rbac.authorization.k8s.io"},
+			Resources: []string{"clusterroles", "clusterrolebindings", "roles", "rolebindings"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"storage.k8s.io"},
+			Resources: []string{"csistoragecapacities", "storageclasses"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"extensions"},
+			Resources: []string{"ingresses"},
+			Verbs:     []string{"get", "watch", "list"},
+		},
+		{
+			APIGroups: []string{"spdx.softwarecomposition.kubescape.io"},
+			Resources: []string{"workloadconfigurationscans", "workloadconfigurationscansummaries"},
+			Verbs:     []string{"create", "update", "patch"},
+		},
+	}
+
+	// Add the rules for the CCS controller.
+	rules = append(rules, []rbacv1.PolicyRule{
+		{
+			APIGroups: []string{"alphaccs.projectcalico.org"},
+			Resources: []string{"frameworks"},
+			Verbs:     []string{"get", "list", "watch"},
+		},
+		//{
+		//	APIGroups: []string{"linseed.tigera.io"},
+		//	Resources: []string{"ccsresults", "ccsruns"},
+		//	Verbs:     []string{"get", "create"},
+		//},
+	}...)
+
+	return &rbacv1.ClusterRole{
+		TypeMeta:   metav1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
+		ObjectMeta: metav1.ObjectMeta{Name: ControllerResourceName},
+		Rules:      rules,
+	}
+
+}
+
+func (c *ccsComponent) controllerClusterRoleBinding() *rbacv1.ClusterRoleBinding {
+	return &rbacv1.ClusterRoleBinding{
+		TypeMeta:   metav1.TypeMeta{Kind: "ClusterRoleBinding", APIVersion: "rbac.authorization.k8s.io/v1"},
+		ObjectMeta: metav1.ObjectMeta{Name: ControllerResourceName},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: "rbac.authorization.k8s.io",
+			Kind:     "ClusterRole",
+			Name:     ControllerResourceName,
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      ControllerResourceName,
+				Namespace: c.cfg.Namespace,
+			},
+		},
+	}
 }
 
 func (c *ccsComponent) controllerDeployment() *appsv1.Deployment {
@@ -77,9 +212,9 @@ func (c *ccsComponent) controllerDeployment() *appsv1.Deployment {
 	}
 
 	envVars := []corev1.EnvVar{
-		{Name: "LOG_LEVEL", Value: "info"},
+		{Name: "LOG_LEVEL", Value: "debug"},
 		{Name: "CCS_API_CA", Value: certPath},
-		{Name: "CCS_API_URL", Value: "https://tigera-ccs-api.tigera-ccs.svc"},
+		{Name: "CCS_API_URL", Value: "https://tigera-ccs-api.tigera-compliance.svc"},
 	}
 
 	if c.cfg.Tenant != nil && c.cfg.Tenant.MultiTenant() {
@@ -105,7 +240,7 @@ func (c *ccsComponent) controllerDeployment() *appsv1.Deployment {
 			Containers: []corev1.Container{
 				{
 					Name:            ControllerResourceName,
-					Image:           "gcr.io/unique-caldron-775/suresh/ccs-controller:demo-v1", // TODO c.controllerImage,
+					Image:           "gcr.io/unique-caldron-775/suresh/ccs-controller:operator-v2", // TODO c.controllerImage,
 					ImagePullPolicy: render.ImagePullPolicy(),
 					Env:             envVars,
 					SecurityContext: securitycontext.NewNonRootContext(),
@@ -144,5 +279,28 @@ func (c *ccsComponent) controllerDeployment() *appsv1.Deployment {
 }
 
 func (c *ccsComponent) controllerAllowTigeraNetworkPolicy() *calicov3.NetworkPolicy {
-	return nil
+	_ = networkpolicy.Helper(c.cfg.Tenant.MultiTenant(), c.cfg.Namespace)
+	return &calicov3.NetworkPolicy{
+		TypeMeta: metav1.TypeMeta{Kind: "NetworkPolicy", APIVersion: "projectcalico.org/v3"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ControllerAccessPolicyName,
+			Namespace: c.cfg.Namespace,
+		},
+		Spec: calicov3.NetworkPolicySpec{
+			Order:    &networkpolicy.HighPrecedenceOrder,
+			Tier:     networkpolicy.TigeraComponentTierName,
+			Selector: networkpolicy.KubernetesAppSelector(ControllerResourceName),
+			Types:    []calicov3.PolicyType{calicov3.PolicyTypeIngress, calicov3.PolicyTypeEgress},
+			Ingress: []calicov3.Rule{
+				{
+					Action: calicov3.Allow,
+				},
+			},
+			Egress: []calicov3.Rule{
+				{
+					Action: calicov3.Allow,
+				},
+			},
+		},
+	}
 }
