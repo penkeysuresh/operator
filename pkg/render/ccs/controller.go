@@ -171,11 +171,16 @@ func (c *ccsComponent) controllerClusterRole() *rbacv1.ClusterRole {
 			Resources: []string{"frameworks"},
 			Verbs:     []string{"get", "list", "watch"},
 		},
-		//{
-		//	APIGroups: []string{"linseed.tigera.io"},
-		//	Resources: []string{"ccsresults", "ccsruns"},
-		//	Verbs:     []string{"get", "create"},
-		//},
+		{
+			APIGroups: []string{"ccs.tigera.io"},
+			Resources: []string{"runs"},
+			Verbs:     []string{"get", "create", "update"},
+		},
+		{
+			APIGroups: []string{"ccs.tigera.io"},
+			Resources: []string{"results"},
+			Verbs:     []string{"create"},
+		},
 	}...)
 
 	return &rbacv1.ClusterRole{
@@ -214,11 +219,13 @@ func (c *ccsComponent) controllerDeployment() *appsv1.Deployment {
 	envVars := []corev1.EnvVar{
 		{Name: "LOG_LEVEL", Value: "debug"},
 		{Name: "CCS_API_CA", Value: certPath},
-		{Name: "CCS_API_URL", Value: "https://tigera-ccs-api.tigera-compliance.svc"},
+		{Name: "CCS_API_TOKEN", Value: "/var/run/secrets/kubernetes.io/serviceaccount/token"},
 	}
 
 	if c.cfg.Tenant != nil && c.cfg.Tenant.MultiTenant() {
 		envVars = append(envVars, corev1.EnvVar{Name: "CCS_API_URL", Value: fmt.Sprintf("https://tigera-ccs-api.%s.svc", c.cfg.Tenant.Namespace)})
+	} else {
+		envVars = append(envVars, corev1.EnvVar{Name: "CCS_API_URL", Value: "https://tigera-ccs-api.tigera-compliance.svc"})
 	}
 
 	annots := c.cfg.TrustedBundle.HashAnnotations()
@@ -240,7 +247,7 @@ func (c *ccsComponent) controllerDeployment() *appsv1.Deployment {
 			Containers: []corev1.Container{
 				{
 					Name:            ControllerResourceName,
-					Image:           "gcr.io/unique-caldron-775/suresh/ccs-controller:operator-v2", // TODO c.controllerImage,
+					Image:           "gcr.io/unique-caldron-775/suresh/ccs-controller:operator-v4", // TODO c.controllerImage,
 					ImagePullPolicy: render.ImagePullPolicy(),
 					Env:             envVars,
 					SecurityContext: securitycontext.NewNonRootContext(),

@@ -84,6 +84,16 @@ func (c *ccsComponent) apiClusterRole() *rbacv1.ClusterRole {
 				Resources: []string{"ccsresults", "ccsruns"},
 				Verbs:     []string{"get", "create"},
 			},
+			{
+				APIGroups: []string{"authorization.k8s.io"},
+				Resources: []string{"subjectaccessreviews"},
+				Verbs:     []string{"create"},
+			},
+			{
+				APIGroups: []string{"authentication.k8s.io"},
+				Resources: []string{"tokenreviews"},
+				Verbs:     []string{"create"},
+			},
 		},
 	}
 }
@@ -114,7 +124,7 @@ func (c *ccsComponent) apiDeployment() *appsv1.Deployment {
 	}
 
 	envVars := []corev1.EnvVar{
-		{Name: "LOG_LEVEL", Value: "debug"},
+		{Name: "LOG_LEVEL", Value: "trace"},
 		{Name: "HTTPS_ENABLED", Value: "true"},
 		{Name: "HTTPS_CERT", Value: certPath},
 		{Name: "HTTPS_KEY", Value: keyPath},
@@ -123,6 +133,7 @@ func (c *ccsComponent) apiDeployment() *appsv1.Deployment {
 		{Name: "LINSEED_CLIENT_CERT", Value: certPath},
 		{Name: "LINSEED_CLIENT_KEY", Value: keyPath},
 		{Name: "LINSEED_TOKEN", Value: render.GetLinseedTokenPath(c.cfg.ManagementClusterConnection != nil)},
+		{Name: "RESOURCE_AUTHORIZATION_MODE", Value: "k8s_rbac"},
 		{Name: "MULTI_CLUSTER_FORWARDING_CA", Value: certificatemanagement.TrustedCertBundleMountPath},
 	}
 
@@ -158,7 +169,7 @@ func (c *ccsComponent) apiDeployment() *appsv1.Deployment {
 			Containers: []corev1.Container{
 				{
 					Name:            APIResourceName,
-					Image:           "gcr.io/unique-caldron-775/suresh/ccs-api:operator-v1", // TODO c.apiImage,
+					Image:           "gcr.io/unique-caldron-775/suresh/ccs-api:operator-v2", // TODO c.apiImage,
 					ImagePullPolicy: render.ImagePullPolicy(),
 					Env:             envVars,
 					Ports:           []corev1.ContainerPort{{ContainerPort: 5557}},

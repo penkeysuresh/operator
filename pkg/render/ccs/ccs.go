@@ -114,6 +114,12 @@ func (c *ccsComponent) Objects() ([]client.Object, []client.Object) {
 		c.apiAllowTigeraNetworkPolicy(),
 	)
 
+	// Skip controller components if multi-tenant mode is enabled. This is true only for calico cloud currently.
+	// At this time we do not support having controller in Calico Cloud.
+	if c.cfg.Tenant.MultiTenant() {
+		return objs, nil
+	}
+
 	objs = append(objs,
 		c.controllerServiceAccount(),
 		c.controllerClusterRole(),
