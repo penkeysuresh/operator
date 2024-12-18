@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2024 Tigera, Inc. All rights reserved.
+// Copyright (c) 2024 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -420,7 +420,7 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 
 	hasNoLicense := !utils.IsFeatureActive(license, common.ComplianceFeature)
 	openshift := r.provider.IsOpenShift()
-	cfg := &ccsrender.Configuration{
+	cfg := &ccsrender.Config{
 		TrustedBundle:                   trustedBundle,
 		Installation:                    network,
 		APIKeyPair:                      apiKeyPair,
@@ -439,12 +439,7 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 	}
 
 	// Render the desired objects from the CRD and create or update them.
-	ccsComponent, err := ccsrender.CCS(cfg)
-	if err != nil {
-		r.status.SetDegraded(operatorv1.ResourceRenderingError, "Error rendering CCS", err, reqLogger)
-		return reconcile.Result{}, err
-	}
-
+	ccsComponent := ccsrender.CCS(cfg)
 	if err = imageset.ApplyImageSet(ctx, r.client, variant, ccsComponent); err != nil {
 		r.status.SetDegraded(operatorv1.ResourceUpdateError, "Error with images from ImageSet", err, reqLogger)
 		return reconcile.Result{}, err

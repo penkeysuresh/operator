@@ -53,8 +53,8 @@ type CCSControllerDeploymentPodSpec struct {
 // CCSControllerDeploymentContainer is a CCS controller Deployment container.
 type CCSControllerDeploymentContainer struct {
 	// Name is an enum which identifies the CCS controller Deployment container by name.
-	// Supported values are: ccs-controller
-	// +kubebuilder:validation:Enum=ccs-controller
+	// Supported values are: tigera-ccs-controller
+	// +kubebuilder:validation:Enum=tigera-ccs-controller
 	Name string `json:"name"`
 
 	// Resources allows customization of limits and requests for compute resources such as cpu and memory.

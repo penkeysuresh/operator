@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2024 Tigera, Inc. All rights reserved.
+// Copyright (c) 2024 Tigera, Inc. All rights reserved.
 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ func (c *component) apiRoleBinding() *rbacv1.RoleBinding {
 func (c *component) apiClusterRole() *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		TypeMeta:   metav1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
-		ObjectMeta: metav1.ObjectMeta{Name: APIResourceName, Namespace: c.cfg.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: APIResourceName},
 		Rules: []rbacv1.PolicyRule{
 			{
 				APIGroups: []string{"linseed.tigera.io"},
@@ -101,7 +101,7 @@ func (c *component) apiClusterRole() *rbacv1.ClusterRole {
 func (c *component) apiClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta:   metav1.TypeMeta{Kind: "ClusterRoleBinding", APIVersion: "rbac.authorization.k8s.io/v1"},
-		ObjectMeta: metav1.ObjectMeta{Name: APIResourceName, Namespace: c.cfg.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: APIResourceName},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
@@ -128,10 +128,10 @@ func (c *component) apiDeployment() *appsv1.Deployment {
 		{Name: "HTTPS_ENABLED", Value: "true"},
 		{Name: "HTTPS_CERT", Value: certPath},
 		{Name: "HTTPS_KEY", Value: keyPath},
-		{Name: "LINSEED_URL", Value: "https://tigera-linseed.tigera-elasticsearch.svc"},
-		{Name: "LINSEED_CA", Value: "/etc/pki/tls/certs/tigera-ca-bundle.crt"},
 		{Name: "LINSEED_CLIENT_CERT", Value: certPath},
 		{Name: "LINSEED_CLIENT_KEY", Value: keyPath},
+		{Name: "LINSEED_URL", Value: "https://tigera-linseed.tigera-elasticsearch.svc"},
+		{Name: "LINSEED_CA", Value: "/etc/pki/tls/certs/tigera-ca-bundle.crt"},
 		{Name: "LINSEED_TOKEN", Value: render.GetLinseedTokenPath(c.cfg.ManagementClusterConnection != nil)},
 		{Name: "RESOURCE_AUTHORIZATION_MODE", Value: "k8s_rbac"},
 		{Name: "MULTI_CLUSTER_FORWARDING_CA", Value: certificatemanagement.TrustedCertBundleMountPath},
@@ -169,7 +169,7 @@ func (c *component) apiDeployment() *appsv1.Deployment {
 			Containers: []corev1.Container{
 				{
 					Name:            APIResourceName,
-					Image:           "gcr.io/unique-caldron-775/suresh/ccs-api:operator-v2", // TODO c.apiImage,
+					Image:           c.apiImage,
 					ImagePullPolicy: render.ImagePullPolicy(),
 					Env:             envVars,
 					Ports:           []corev1.ContainerPort{{ContainerPort: 5557}},

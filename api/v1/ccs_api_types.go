@@ -53,8 +53,8 @@ type CCSAPIDeploymentPodSpec struct {
 // CCSAPIDeploymentContainer is a CCS API Deployment container.
 type CCSAPIDeploymentContainer struct {
 	// Name is an enum which identifies the CCS API Deployment container by name.
-	// Supported values are: ccs-api
-	// +kubebuilder:validation:Enum=ccs-api
+	// Supported values are: tigera-ccs-api
+	// +kubebuilder:validation:Enum=tigera-ccs-api
 	Name string `json:"name"`
 
 	// Resources allows customization of limits and requests for compute resources such as cpu and memory.

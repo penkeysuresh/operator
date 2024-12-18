@@ -34,20 +34,20 @@ const (
 	Namespace = "tigera-compliance"
 )
 
-func CCS(cfg *Configuration) (render.Component, error) {
+func CCS(cfg *Config) render.Component {
 	return &component{
 		cfg: cfg,
-	}, nil
+	}
 }
 
 type component struct {
-	cfg             *Configuration
+	cfg             *Config
 	apiImage        string
 	controllerImage string
 }
 
-// Configuration contains all the config information needed to render the component.
-type Configuration struct {
+// Config contains all the config information needed to render the component.
+type Config struct {
 	Installation                *operatorv1.InstallationSpec
 	PullSecrets                 []*corev1.Secret
 	OpenShift                   bool
@@ -106,26 +106,20 @@ func (c *component) Objects() ([]client.Object, []client.Object) {
 		c.apiServiceAccount(),
 		c.apiRole(),
 		c.apiRoleBinding(),
-		c.apiDeployment(),
-		c.apiService(),
 		c.apiClusterRole(),
 		c.apiClusterRoleBinding(),
+		c.apiDeployment(),
+		c.apiService(),
 		// TODO: the policy is broad but works.
 		c.apiAllowTigeraNetworkPolicy(),
 	)
 
-	// Skip controller components if multi-tenant mode is enabled. This is true only for calico cloud currently.
-	// At this time we do not support having controller in Calico Cloud.
-	if c.cfg.Tenant.MultiTenant() {
-		return objs, nil
-	}
-
 	objs = append(objs,
 		c.controllerServiceAccount(),
-		c.controllerClusterRole(),
-		c.controllerClusterRoleBinding(),
 		c.controllerRole(),
 		c.controllerRoleBinding(),
+		c.controllerClusterRole(),
+		c.controllerClusterRoleBinding(),
 		c.hostScannerYamlConfigMap(),
 		c.controllerDeployment(),
 		// TODO: the policy is broad but works.
