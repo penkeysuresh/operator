@@ -15,7 +15,10 @@
 package ccs
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
+	"text/template"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,7 +34,13 @@ import (
 	"github.com/tigera/operator/pkg/render/common/securitycontext"
 )
 
-const ControllerResourceName = "tigera-ccs-controller"
+const (
+	ControllerResourceName     = "tigera-ccs-controller"
+	HostScannerConfigName      = "tigera-ccs-host-scanner-config"
+	HostScannerConfigKey       = "host-scanner.yaml"
+	HostScannerConfigMountPath = "/etc/ccs"
+	HostScannerYamlPath        = HostScannerConfigMountPath + "/" + HostScannerConfigKey
+)
 
 func (c *ccsComponent) controllerServiceAccount() *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
@@ -220,6 +229,7 @@ func (c *ccsComponent) controllerDeployment() *appsv1.Deployment {
 		{Name: "LOG_LEVEL", Value: "debug"},
 		{Name: "CCS_API_CA", Value: certPath},
 		{Name: "CCS_API_TOKEN", Value: "/var/run/secrets/kubernetes.io/serviceaccount/token"},
+		{Name: "CCS_HOST_SCANNER_YAML_PATH", Value: HostScannerYamlPath},
 	}
 
 	if c.cfg.Tenant != nil && c.cfg.Tenant.MultiTenant() {
@@ -247,19 +257,15 @@ func (c *ccsComponent) controllerDeployment() *appsv1.Deployment {
 			Containers: []corev1.Container{
 				{
 					Name:            ControllerResourceName,
-					Image:           "gcr.io/unique-caldron-775/suresh/ccs-controller:operator-v4", // TODO c.controllerImage,
+					Image:           "gcr.io/unique-caldron-775/suresh/ccs-controller:operator-v9", // TODO c.controllerImage,
 					ImagePullPolicy: render.ImagePullPolicy(),
 					Env:             envVars,
 					SecurityContext: securitycontext.NewNonRootContext(),
-					VolumeMounts: append(
-						c.cfg.TrustedBundle.VolumeMounts(c.SupportedOSType()),
-						c.cfg.APIKeyPair.VolumeMount(c.SupportedOSType()),
-					)},
+					VolumeMounts:    c.controllerVolumeMounts(),
+				},
 			},
-			Volumes: []corev1.Volume{
-				c.cfg.APIKeyPair.Volume(),
-				c.cfg.TrustedBundle.Volume(),
-			}},
+			Volumes: c.controllerVolumes(),
+		},
 	}
 
 	d := &appsv1.Deployment{
@@ -285,6 +291,34 @@ func (c *ccsComponent) controllerDeployment() *appsv1.Deployment {
 	return d
 }
 
+func (c *ccsComponent) controllerVolumeMounts() []corev1.VolumeMount {
+	vms := []corev1.VolumeMount{
+		c.cfg.APIKeyPair.VolumeMount(c.SupportedOSType()),
+	}
+	vms = append(vms, c.cfg.TrustedBundle.VolumeMounts(c.SupportedOSType())...)
+
+	vms = append(vms, corev1.VolumeMount{
+		Name:      HostScannerConfigName,
+		ReadOnly:  true,
+		MountPath: HostScannerConfigMountPath,
+	})
+
+	return vms
+}
+
+func (c *ccsComponent) controllerVolumes() []corev1.Volume {
+	volumes := []corev1.Volume{c.cfg.APIKeyPair.Volume(), c.cfg.TrustedBundle.Volume()}
+	volumes = append(volumes, corev1.Volume{
+		Name: HostScannerConfigName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{Name: HostScannerConfigName},
+			},
+		},
+	})
+	return volumes
+}
+
 func (c *ccsComponent) controllerAllowTigeraNetworkPolicy() *calicov3.NetworkPolicy {
 	_ = networkpolicy.Helper(c.cfg.Tenant.MultiTenant(), c.cfg.Namespace)
 	return &calicov3.NetworkPolicy{
@@ -308,6 +342,35 @@ func (c *ccsComponent) controllerAllowTigeraNetworkPolicy() *calicov3.NetworkPol
 					Action: calicov3.Allow,
 				},
 			},
+		},
+	}
+}
+
+//go:embed host-scanner.yaml.template
+var hostScannerConfigTemplate string
+
+func (c *ccsComponent) hostScannerYamlConfigMap() *corev1.ConfigMap {
+	var config bytes.Buffer
+
+	tpl, err := template.New("hostScannerConfigTemplate").Parse(hostScannerConfigTemplate)
+	if err != nil {
+		return nil
+	}
+
+	err = tpl.Execute(&config, c.cfg)
+	if err != nil {
+		return nil
+	}
+
+	return &corev1.ConfigMap{
+		TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: "v1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      HostScannerConfigName,
+			Namespace: c.cfg.Namespace,
+			Labels:    map[string]string{},
+		},
+		Data: map[string]string{
+			HostScannerConfigKey: config.String(),
 		},
 	}
 }

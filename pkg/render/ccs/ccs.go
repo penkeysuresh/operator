@@ -126,6 +126,7 @@ func (c *ccsComponent) Objects() ([]client.Object, []client.Object) {
 		c.controllerClusterRoleBinding(),
 		c.controllerRole(),
 		c.controllerRoleBinding(),
+		c.hostScannerYamlConfigMap(),
 		c.controllerDeployment(),
 		// TODO: the policy is broad but works.
 		c.controllerAllowTigeraNetworkPolicy(),
