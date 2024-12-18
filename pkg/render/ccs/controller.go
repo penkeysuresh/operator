@@ -42,14 +42,14 @@ const (
 	HostScannerYamlPath        = HostScannerConfigMountPath + "/" + HostScannerConfigKey
 )
 
-func (c *ccsComponent) controllerServiceAccount() *corev1.ServiceAccount {
+func (c *component) controllerServiceAccount() *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		TypeMeta:   metav1.TypeMeta{Kind: "ServiceAccount", APIVersion: "v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: ControllerResourceName, Namespace: c.cfg.Namespace},
 	}
 }
 
-func (c *ccsComponent) controllerRole() *rbacv1.Role {
+func (c *component) controllerRole() *rbacv1.Role {
 	return &rbacv1.Role{
 		TypeMeta:   metav1.TypeMeta{Kind: "Role", APIVersion: "rbac.authorization.k8s.io/v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: ControllerResourceName, Namespace: c.cfg.Namespace},
@@ -57,7 +57,7 @@ func (c *ccsComponent) controllerRole() *rbacv1.Role {
 	}
 }
 
-func (c *ccsComponent) controllerRoleBinding() *rbacv1.RoleBinding {
+func (c *component) controllerRoleBinding() *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		TypeMeta:   metav1.TypeMeta{Kind: "RoleBinding", APIVersion: "rbac.authorization.k8s.io/v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: ControllerResourceName, Namespace: c.cfg.Namespace},
@@ -76,7 +76,7 @@ func (c *ccsComponent) controllerRoleBinding() *rbacv1.RoleBinding {
 	}
 }
 
-func (c *ccsComponent) controllerClusterRole() *rbacv1.ClusterRole {
+func (c *component) controllerClusterRole() *rbacv1.ClusterRole {
 	// Set of permissions for kubescape host sensor.
 	rules := []rbacv1.PolicyRule{
 		{
@@ -200,7 +200,7 @@ func (c *ccsComponent) controllerClusterRole() *rbacv1.ClusterRole {
 
 }
 
-func (c *ccsComponent) controllerClusterRoleBinding() *rbacv1.ClusterRoleBinding {
+func (c *component) controllerClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta:   metav1.TypeMeta{Kind: "ClusterRoleBinding", APIVersion: "rbac.authorization.k8s.io/v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: ControllerResourceName},
@@ -219,7 +219,7 @@ func (c *ccsComponent) controllerClusterRoleBinding() *rbacv1.ClusterRoleBinding
 	}
 }
 
-func (c *ccsComponent) controllerDeployment() *appsv1.Deployment {
+func (c *component) controllerDeployment() *appsv1.Deployment {
 	var certPath string
 	if c.cfg.APIKeyPair != nil {
 		certPath = c.cfg.APIKeyPair.VolumeMountCertificateFilePath()
@@ -291,7 +291,7 @@ func (c *ccsComponent) controllerDeployment() *appsv1.Deployment {
 	return d
 }
 
-func (c *ccsComponent) controllerVolumeMounts() []corev1.VolumeMount {
+func (c *component) controllerVolumeMounts() []corev1.VolumeMount {
 	vms := []corev1.VolumeMount{
 		c.cfg.APIKeyPair.VolumeMount(c.SupportedOSType()),
 	}
@@ -306,7 +306,7 @@ func (c *ccsComponent) controllerVolumeMounts() []corev1.VolumeMount {
 	return vms
 }
 
-func (c *ccsComponent) controllerVolumes() []corev1.Volume {
+func (c *component) controllerVolumes() []corev1.Volume {
 	volumes := []corev1.Volume{c.cfg.APIKeyPair.Volume(), c.cfg.TrustedBundle.Volume()}
 	volumes = append(volumes, corev1.Volume{
 		Name: HostScannerConfigName,
@@ -319,7 +319,7 @@ func (c *ccsComponent) controllerVolumes() []corev1.Volume {
 	return volumes
 }
 
-func (c *ccsComponent) controllerAllowTigeraNetworkPolicy() *calicov3.NetworkPolicy {
+func (c *component) controllerAllowTigeraNetworkPolicy() *calicov3.NetworkPolicy {
 	_ = networkpolicy.Helper(c.cfg.Tenant.MultiTenant(), c.cfg.Namespace)
 	return &calicov3.NetworkPolicy{
 		TypeMeta: metav1.TypeMeta{Kind: "NetworkPolicy", APIVersion: "projectcalico.org/v3"},
@@ -349,7 +349,7 @@ func (c *ccsComponent) controllerAllowTigeraNetworkPolicy() *calicov3.NetworkPol
 //go:embed host-scanner.yaml.template
 var hostScannerConfigTemplate string
 
-func (c *ccsComponent) hostScannerYamlConfigMap() *corev1.ConfigMap {
+func (c *component) hostScannerYamlConfigMap() *corev1.ConfigMap {
 	var config bytes.Buffer
 
 	tpl, err := template.New("hostScannerConfigTemplate").Parse(hostScannerConfigTemplate)

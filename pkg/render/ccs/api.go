@@ -40,14 +40,14 @@ const (
 	ControllerAccessPolicyName = networkpolicy.TigeraComponentPolicyPrefix + "ccs-controller-access"
 )
 
-func (c *ccsComponent) apiServiceAccount() *corev1.ServiceAccount {
+func (c *component) apiServiceAccount() *corev1.ServiceAccount {
 	return &corev1.ServiceAccount{
 		TypeMeta:   metav1.TypeMeta{Kind: "ServiceAccount", APIVersion: "v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: APIResourceName, Namespace: c.cfg.Namespace},
 	}
 }
 
-func (c *ccsComponent) apiRole() *rbacv1.Role {
+func (c *component) apiRole() *rbacv1.Role {
 	return &rbacv1.Role{
 		TypeMeta:   metav1.TypeMeta{Kind: "Role", APIVersion: "rbac.authorization.k8s.io/v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: APIResourceName, Namespace: c.cfg.Namespace},
@@ -55,7 +55,7 @@ func (c *ccsComponent) apiRole() *rbacv1.Role {
 	}
 }
 
-func (c *ccsComponent) apiRoleBinding() *rbacv1.RoleBinding {
+func (c *component) apiRoleBinding() *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		TypeMeta:   metav1.TypeMeta{Kind: "RoleBinding", APIVersion: "rbac.authorization.k8s.io/v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: APIResourceName, Namespace: c.cfg.Namespace},
@@ -74,7 +74,7 @@ func (c *ccsComponent) apiRoleBinding() *rbacv1.RoleBinding {
 	}
 }
 
-func (c *ccsComponent) apiClusterRole() *rbacv1.ClusterRole {
+func (c *component) apiClusterRole() *rbacv1.ClusterRole {
 	return &rbacv1.ClusterRole{
 		TypeMeta:   metav1.TypeMeta{Kind: "ClusterRole", APIVersion: "rbac.authorization.k8s.io/v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: APIResourceName, Namespace: c.cfg.Namespace},
@@ -98,7 +98,7 @@ func (c *ccsComponent) apiClusterRole() *rbacv1.ClusterRole {
 	}
 }
 
-func (c *ccsComponent) apiClusterRoleBinding() *rbacv1.ClusterRoleBinding {
+func (c *component) apiClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 	return &rbacv1.ClusterRoleBinding{
 		TypeMeta:   metav1.TypeMeta{Kind: "ClusterRoleBinding", APIVersion: "rbac.authorization.k8s.io/v1"},
 		ObjectMeta: metav1.ObjectMeta{Name: APIResourceName, Namespace: c.cfg.Namespace},
@@ -117,7 +117,7 @@ func (c *ccsComponent) apiClusterRoleBinding() *rbacv1.ClusterRoleBinding {
 	}
 }
 
-func (c *ccsComponent) apiDeployment() *appsv1.Deployment {
+func (c *component) apiDeployment() *appsv1.Deployment {
 	var keyPath, certPath string
 	if c.cfg.APIKeyPair != nil {
 		keyPath, certPath = c.cfg.APIKeyPair.VolumeMountKeyFilePath(), c.cfg.APIKeyPair.VolumeMountCertificateFilePath()
@@ -212,7 +212,7 @@ func (c *ccsComponent) apiDeployment() *appsv1.Deployment {
 	return d
 }
 
-func (c *ccsComponent) apiService() *corev1.Service {
+func (c *component) apiService() *corev1.Service {
 	return &corev1.Service{
 		TypeMeta: metav1.TypeMeta{Kind: "Service", APIVersion: "v1"},
 		ObjectMeta: metav1.ObjectMeta{
@@ -234,7 +234,7 @@ func (c *ccsComponent) apiService() *corev1.Service {
 	}
 }
 
-func (c *ccsComponent) apiAllowTigeraNetworkPolicy() *calicov3.NetworkPolicy {
+func (c *component) apiAllowTigeraNetworkPolicy() *calicov3.NetworkPolicy {
 	_ = networkpolicy.Helper(c.cfg.Tenant.MultiTenant(), c.cfg.Namespace)
 	return &calicov3.NetworkPolicy{
 		TypeMeta: metav1.TypeMeta{Kind: "NetworkPolicy", APIVersion: "projectcalico.org/v3"},

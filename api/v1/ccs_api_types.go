@@ -20,49 +20,46 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-// CCSAPIDeployment is the configuration for the CCS controller Deployment.
+// CCSAPIDeployment is the configuration for the CCS API Deployment.
 type CCSAPIDeployment struct {
-
-	// Spec is the specification of the CCS controller Deployment.
+	// Spec is the specification of the CCS API Deployment.
 	// +optional
 	Spec *CCSAPIDeploymentSpec `json:"spec,omitempty"`
 }
 
-// CCSAPIDeploymentSpec defines configuration for the CCS controller Deployment.
+// CCSAPIDeploymentSpec defines configuration for the CCS API Deployment.
 type CCSAPIDeploymentSpec struct {
-
-	// Template describes the CCS controller Deployment pod that will be created.
+	// Template describes the CCS API Deployment pod that will be created.
 	// +optional
 	Template *CCSAPIDeploymentPodTemplateSpec `json:"template,omitempty"`
 }
 
-// CCSAPIDeploymentPodTemplateSpec is the CCS controller Deployment's PodTemplateSpec
+// CCSAPIDeploymentPodTemplateSpec is the CCS API Deployment's PodTemplateSpec
 type CCSAPIDeploymentPodTemplateSpec struct {
-
-	// Spec is the CCS controller Deployment's PodSpec.
+	// Spec is the CCS API Deployment's PodSpec.
 	// +optional
 	Spec *CCSAPIDeploymentPodSpec `json:"spec,omitempty"`
 }
 
-// CCSAPIDeploymentPodSpec is the CCS controller Deployment's PodSpec.
+// CCSAPIDeploymentPodSpec is the CCS API Deployment's PodSpec.
 type CCSAPIDeploymentPodSpec struct {
-	// Containers is a list of CCS controller containers.
-	// If specified, this overrides the specified CCS controller Deployment containers.
-	// If omitted, the CCS controller Deployment will use its default values for its containers.
+	// Containers is a list of CCS API containers.
+	// If specified, this overrides the specified CCS API Deployment containers.
+	// If omitted, the CCS API Deployment will use its default values for its containers.
 	// +optional
 	Containers []CCSAPIDeploymentContainer `json:"containers,omitempty"`
 }
 
-// CCSAPIDeploymentContainer is a CCS controller Deployment container.
+// CCSAPIDeploymentContainer is a CCS API Deployment container.
 type CCSAPIDeploymentContainer struct {
-	// Name is an enum which identifies the CCS controller Deployment container by name.
+	// Name is an enum which identifies the CCS API Deployment container by name.
 	// Supported values are: ccs-api
 	// +kubebuilder:validation:Enum=ccs-api
 	Name string `json:"name"`
 
 	// Resources allows customization of limits and requests for compute resources such as cpu and memory.
-	// If specified, this overrides the named CCS controller Deployment container's resources.
-	// If omitted, the CCS controller Deployment will use its default value for this container's resources.
+	// If specified, this overrides the named CCS API Deployment container's resources.
+	// If omitted, the CCS API Deployment will use its default value for this container's resources.
 	// +optional
 	Resources *v1.ResourceRequirements `json:"resources,omitempty"`
 }

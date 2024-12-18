@@ -35,12 +35,12 @@ const (
 )
 
 func CCS(cfg *Configuration) (render.Component, error) {
-	return &ccsComponent{
+	return &component{
 		cfg: cfg,
 	}, nil
 }
 
-type ccsComponent struct {
+type component struct {
 	cfg             *Configuration
 	apiImage        string
 	controllerImage string
@@ -70,7 +70,7 @@ type Configuration struct {
 	ComplianceConfigurationSecurity *operatorv1.ComplianceConfigurationSecurity
 }
 
-func (c *ccsComponent) ResolveImages(is *operatorv1.ImageSet) error {
+func (c *component) ResolveImages(is *operatorv1.ImageSet) error {
 	reg := c.cfg.Installation.Registry
 	path := c.cfg.Installation.ImagePath
 	prefix := c.cfg.Installation.ImagePrefix
@@ -93,11 +93,11 @@ func (c *ccsComponent) ResolveImages(is *operatorv1.ImageSet) error {
 	return nil
 }
 
-func (c *ccsComponent) SupportedOSType() rmeta.OSType {
+func (c *component) SupportedOSType() rmeta.OSType {
 	return rmeta.OSTypeLinux
 }
 
-func (c *ccsComponent) Objects() ([]client.Object, []client.Object) {
+func (c *component) Objects() ([]client.Object, []client.Object) {
 	var objs []client.Object
 
 	objs = append(objs, secret.ToRuntimeObjects(secret.CopyToNamespace(c.cfg.Namespace, c.cfg.PullSecrets...)...)...)
@@ -135,6 +135,6 @@ func (c *ccsComponent) Objects() ([]client.Object, []client.Object) {
 	return objs, nil
 }
 
-func (c *ccsComponent) Ready() bool {
+func (c *component) Ready() bool {
 	return true
 }

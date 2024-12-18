@@ -376,6 +376,8 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 	}
 
 	var apiKeyPair certificatemanagement.KeyPairInterface
+	// TODO: To support MCM cluster we need MCC components creating this separately into operator namespace.
+	// TODO: After creating MCM component we wait on these secrets.
 	// create tls key pair for ccs api.
 	apiKeyPair, err = certificateManager.GetOrCreateKeyPair(
 		r.client,
@@ -401,8 +403,6 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 
 	// Determine the namespaces to which we must bind the cluster role.
 	// For multi-tenant, the cluster role will be bind to the service account in the tenant namespace
-	// For single-tenant or zero-tenant, the cluster role will be bind to the service account in the tigera-policy-recommendation
-	// namespace
 	bindNamespaces, err := helper.TenantNamespaces(r.client)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -460,7 +460,6 @@ func (r *ReconcileCCS) Reconcile(ctx context.Context, request reconcile.Request)
 	})
 
 	hdlr := utils.NewComponentHandler(log, r.client, r.scheme, instance)
-
 	for _, c := range []commonrender.Component{namespaceComp, certificateComponent, ccsComponent} {
 		if err := hdlr.CreateOrUpdateOrDelete(ctx, c, r.status); err != nil {
 			r.status.SetDegraded(operatorv1.ResourceUpdateError, "Error creating / updating / deleting resource", err, reqLogger)

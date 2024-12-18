@@ -438,7 +438,7 @@ func (l *linseed) linseedDeployment() *appsv1.Deployment {
 			Containers: []corev1.Container{
 				{
 					Name:            DeploymentName,
-					Image:           "gcr.io/unique-caldron-775/suresh/linseed:operator-v2", //l.linseedImage,
+					Image:           l.linseedImage,
 					ImagePullPolicy: render.ImagePullPolicy(),
 					Env:             envVars,
 					VolumeMounts:    volumeMounts,

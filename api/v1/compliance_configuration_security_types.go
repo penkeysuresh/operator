@@ -22,6 +22,7 @@ import (
 
 // ComplianceConfigurationSecuritySpec defines the desired state of CCS.
 type ComplianceConfigurationSecuritySpec struct {
+	// This controls the deployment of the CCS controller.
 	CCSControllerDeployment *CCSControllerDeployment `json:"ccsControllerDeployment,omitempty"`
 
 	// This controls the deployment of the CCS API.
@@ -30,7 +31,6 @@ type ComplianceConfigurationSecuritySpec struct {
 
 // ComplianceConfigurationSecurityStatus defines the observed state of CCS.
 type ComplianceConfigurationSecurityStatus struct {
-
 	// State provides user-readable status.
 	State string `json:"state,omitempty"`
 
@@ -48,10 +48,8 @@ type ComplianceConfigurationSecurityStatus struct {
 type ComplianceConfigurationSecurity struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-
 	// Specification of the desired state for CCS.
 	Spec ComplianceConfigurationSecuritySpec `json:"spec,omitempty"`
-
 	// Most recently observed state for CCS.
 	Status ComplianceConfigurationSecurityStatus `json:"status,omitempty"`
 }

@@ -22,7 +22,6 @@ import (
 
 // CCSControllerDeployment is the configuration for the CCS controller Deployment.
 type CCSControllerDeployment struct {
-
 	// Spec is the specification of the CCS controller Deployment.
 	// +optional
 	Spec *CCSControllerDeploymentSpec `json:"spec,omitempty"`
@@ -30,7 +29,6 @@ type CCSControllerDeployment struct {
 
 // CCSControllerDeploymentSpec defines configuration for the CCS controller Deployment.
 type CCSControllerDeploymentSpec struct {
-
 	// Template describes the CCS controller Deployment pod that will be created.
 	// +optional
 	Template *CCSControllerDeploymentPodTemplateSpec `json:"template,omitempty"`
@@ -38,7 +36,6 @@ type CCSControllerDeploymentSpec struct {
 
 // CCSControllerDeploymentPodTemplateSpec is the CCS controller Deployment's PodTemplateSpec
 type CCSControllerDeploymentPodTemplateSpec struct {
-
 	// Spec is the CCS controller Deployment's PodSpec.
 	// +optional
 	Spec *CCSControllerDeploymentPodSpec `json:"spec,omitempty"`
