@@ -185,8 +185,6 @@ func (d *dexBaseCfg) RedirectURIs() []string {
 		// These call-back urls are used by the manager in order to refresh the access tokens.
 		"https://localhost:9443/login/oidc/silent-callback",
 		"https://127.0.0.1:9443/login/oidc/silent-callback",
-		"https://localhost:9443/tigera-kibana/api/security/oidc/callback",
-		"https://127.0.0.1:9443/tigera-kibana/api/security/oidc/callback",
 		"http://localhost:8080/callback",
 		"http://127.0.0.1:8080/callback",
 	}
