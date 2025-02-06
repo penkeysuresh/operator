@@ -378,7 +378,7 @@ func (c *dexComponent) configMap() *corev1.ConfigMap {
 		"connectors": []map[string]interface{}{c.connector},
 		"oauth2": map[string]interface{}{
 			"skipApprovalScreen": true,
-			"responseTypes":      []string{"id_token", "code", "token"},
+			"responseTypes":      []string{"code"},
 		},
 		"staticClients": []map[string]interface{}{
 			{
@@ -386,6 +386,7 @@ func (c *dexComponent) configMap() *corev1.ConfigMap {
 				"redirectURIs": c.cfg.DexConfig.RedirectURIs(),
 				"name":         "Calico Enterprise Manager",
 				"secretEnv":    dexSecretEnv,
+				"grantTypes":   []string{"authorization_code"},
 			},
 		},
 		"expiry": map[string]string{

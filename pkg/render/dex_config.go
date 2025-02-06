@@ -183,6 +183,8 @@ func (d *dexBaseCfg) RedirectURIs() []string {
 		"https://127.0.0.1:9443/login/oidc/callback",
 		"https://localhost:9443/tigera-kibana/api/security/oidc/callback",
 		"https://127.0.0.1:9443/tigera-kibana/api/security/oidc/callback",
+		"http://localhost:8080/callback",
+		"http://127.0.0.1:8080/callback",
 	}
 
 	if d.baseURL != "" && !strings.Contains(d.baseURL, "localhost") && !strings.Contains(d.baseURL, "127.0.0.1") {
